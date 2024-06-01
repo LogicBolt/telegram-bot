@@ -3,22 +3,6 @@ import "dotenv/config";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 
-// Send a button
-// bot.command("start", (ctx) => {
-//   console.log(ctx.message?.message_id);
-
-//   ctx.reply("a", {
-//     reply_markup: new InlineKeyboard().webApp(
-//     "Open Mini App",
-//     "https://your-web-app.com"
-//   ),
-//   });
-// });
-
-bot.on("message", (ctx) => {
-  console.log(ctx.chatId);
-});
-
 /* 
 When added to a group the bot, it's creating a
 new multisig, so it need to understand what's
@@ -26,8 +10,35 @@ the % of the group needs to agree to move funds
 */
 bot.on("my_chat_member", (ctx) => {
   ctx.reply("Hi yall! Looks like a group of winners.");
-  // TODO: create a new private key and account. Register current member number.
+  // TODO: create a new private key and account. Register current chat number.
   console.log(ctx);
+});
+
+/* 
+For proposing a new transaction on the group, 
+a user should sent /propose, then the bot will reachout
+in the DM to send a button for starting the mini webapp.
+*/
+bot.command("propose", async (ctx) => {
+  const author = await ctx.getAuthor();
+
+  bot.api.sendMessage(author.user.id, "Hi!", {
+    reply_markup: new InlineKeyboard().webApp(
+      "Propose a transaction",
+      "https://your-web-app.com"
+    ),
+  });
+});
+
+// Send a button
+// bot.command("start", (ctx) => {
+//   console.log(ctx.message?.message_id);
+
+//   ctx.reply("a", );
+// });
+
+bot.on("message", (ctx) => {
+  console.log(ctx.chatId);
 });
 
 /* 
