@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "@types/node": "^20.13.0",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.11.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
@@ -9,6 +9,6 @@
     "grammy": "^1.24.0"
   },
   "scripts": {
-    "start": "npx ts-node bot.ts"
+    "start": "npx tsx watch --clear-screen=false bot.ts"
   }
 }
