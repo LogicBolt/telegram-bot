@@ -1,7 +1,18 @@
 export const messages = {
-  joiningGroup: `joiningGroup`,
-  createProposal: `createProposal`,
-  createProposalButton: `createProposalButton`,
+  joiningGroup: `Hello, I am DAOgram, welcome to the Telegram Unified Governance.
+
+Congrats, the multisig [MULTISIG HERE] was created! You are a DAO member now.
+
+Type /propose to create a proposal.
+
+If you approve a proposal, just react to the message the 👍 emoji to vote.
+
+Enjoy the governance!`,
+  createProposal: `Hey, DAO member! 🌟 
+Are you ready to create a proposal? Please provide the required information. Don't forget to include a description, the amount in $TON, and the receiver's wallet address.
+  
+Good luck 🍀`,
+  createProposalButton: `Propose`,
   proposalTemplate: `A new proposal is in the air:
 
 $DESCRIPTION

@@ -35,11 +35,11 @@ bot.command("propose", async (ctx) => {
     db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount());
   }
 
-  bot.api.sendMessage(author.user.id, messages.createProposal, {
+  await bot.api.sendMessage(author.user.id, messages.createProposal, {
     reply_markup: new InlineKeyboard().webApp(
       messages.createProposalButton,
       // TODO: add chat id as query param
-      "https://preview.daogram.0dns.co"
+      `https://preview.daogram.0dns.co/#submit-proposal?chat-id=${ctx.chatId}`
     ),
   });
 });
@@ -48,8 +48,8 @@ bot.command("propose", async (ctx) => {
 Receives data from webapp after submitting proposal
 */
 socket.on("proposal", async (proposal) => {
+  console.log("Received proposal: ", proposal);
   proposal.chatId = -1002181151341;
-  proposal.description = "Donation to charity";
 
   const message = await bot.api.sendMessage(
     proposal.chatId,
@@ -61,8 +61,6 @@ socket.on("proposal", async (proposal) => {
 
   const dao = db.findDAO(proposal.chatId)!;
   dao.createNewProposal(message.message_id);
-
-  console.log("proposal-receive - message id: ", message.message_id);
 });
 
 /* 

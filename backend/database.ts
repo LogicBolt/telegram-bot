@@ -79,6 +79,11 @@ class DAO implements IDAO {
   }
 
   getApprovalThreshold(): number {
+    console.log(
+      this.members,
+      this.members * 0.49,
+      Math.ceil(this.members * 0.49)
+    );
     return Math.ceil(this.members * 0.49);
   }
 
