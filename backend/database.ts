@@ -1,3 +1,5 @@
+import { EmbeddedWallet } from './embedded-wallet';
+
 export interface IProposal {
   messageId: number;
   upvotes: number;
@@ -26,7 +28,7 @@ interface IDAO {
 interface IDatabase {
   daos?: Array<IDAO>;
 
-  createNewDAO(chatId: number, members: number): IDAO;
+  createNewDAO(chatId: number, members: number, wallet: EmbeddedWallet): IDAO;
   findDAO(chatId: number): IDAO | undefined;
 }
 
@@ -56,10 +58,12 @@ class DAO implements IDAO {
   chatId: number;
   proposals: Array<IProposal>;
   members: number;
+  wallet: EmbeddedWallet;
 
-  constructor(chatId: number, members: number) {
+  constructor(chatId: number, members: number, wallet: EmbeddedWallet) {
     this.chatId = chatId;
     this.members = members;
+    this.wallet = wallet;
     this.proposals = [];
   }
 
@@ -93,8 +97,8 @@ export class Database implements IDatabase {
   constructor() {
     this.daos = [];
   }
-  createNewDAO(chatId: number, members: number): IDAO {
-    const dao = new DAO(chatId, members);
+  createNewDAO(chatId: number, members: number, wallet: EmbeddedWallet): IDAO {
+    const dao = new DAO(chatId, members, wallet);
     this.daos.push(dao);
 
     return dao;

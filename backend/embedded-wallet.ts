@@ -6,5 +6,4 @@ export interface EmbeddedWallet {
   address: Address;
   publicKey: Uint8Array;
   secretKey: Uint8Array;
-  deployment: any;
 }

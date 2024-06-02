@@ -7,7 +7,8 @@ import type { IProposal } from './database';
 const provider = new TonWeb.HttpProvider('https://testnet.toncenter.com/api/v2/jsonRPC', {apiKey: ''});
 const tonweb = new TonWeb(provider);
 
-export async function createWallet(walletId: number): Promise<EmbeddedWallet> {
+export async function createWallet(chatId: number): Promise<EmbeddedWallet> {
+  const walletId = chatId | 0xffffffff;
   // const mnemonic = await TonMnemonic.generateMnemonic();
   const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(' ');
   const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(mnemonic);
@@ -17,14 +18,13 @@ export async function createWallet(walletId: number): Promise<EmbeddedWallet> {
   const address = await wallet.getAddress();
   // const nonBounceableAddress = address.toString(true, true, false, true);
   // const seqno = await wallet.methods.seqno().call();
-  const deployment = await wallet.deploy(secretKey).send(); // deploy wallet to blockchain
+  console.log(`Deployed new wallet ${address.toString(true, true, false, true)}`);
 
   return {
     wallet,
     address,
     publicKey,
     secretKey,
-    deployment,
   };
 }
 

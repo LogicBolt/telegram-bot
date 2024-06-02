@@ -3,6 +3,7 @@ import "dotenv/config";
 import { Database } from "./database";
 import { messages } from "./messages";
 import { io } from "socket.io-client";
+import { createWallet } from './onchain';
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const db = new Database();
@@ -14,12 +15,21 @@ new multisig, so it need to understand what's
 the % of the group needs to agree to move funds
 */
 bot.on("my_chat_member", async (ctx) => {
-  ctx.reply(messages.joiningGroup);
+  if (ctx.update.my_chat_member.new_chat_member.status !== 'member') {
+    return;
+  }
 
-  console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
+  await ctx.reply(messages.joiningGroup);
+
+  // console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
   console.log("my_chat_member:chatId: ", ctx.chatId);
-  console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
-  db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount());
+  // console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
+  try {
+    const embeddedWallet = await createWallet(ctx.chatId);
+    db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount(), embeddedWallet);
+  } catch (e: unknown) {
+    console.error(e);
+  }
 });
 
 /* 
@@ -32,7 +42,8 @@ bot.command("propose", async (ctx) => {
   const dao = db.findDAO(ctx.chatId);
 
   if (dao == undefined) {
-    db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount());
+    const embeddedWallet = await createWallet(ctx.chatId);
+    db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount(), embeddedWallet);
   }
 
   await bot.api.sendMessage(author.user.id, messages.createProposal, {
