@@ -91,7 +91,8 @@ class DAO implements IDAO {
   }
 
   executeProposal(proposal: IProposal): any {
-    // return sendTransaction(proposal, this.wallet);
+    console.log("HEEERRREEEE");
+    return sendTransaction(proposal, this.wallet);
   }
 }
 
