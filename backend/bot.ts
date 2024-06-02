@@ -8,7 +8,7 @@ const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const db = new Database();
 const socket = io("https://socket.daogram.0dns.co/");
 
-/* 
+/*
 When added to a group the bot, it's creating a
 new multisig, so it need to understand what's
 the % of the group needs to agree to move funds
