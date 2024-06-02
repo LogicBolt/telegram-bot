@@ -40,7 +40,7 @@ class Proposal implements IProposal {
 
   constructor(messageId: number) {
     this.messageId = messageId;
-    this.upvotes = 1;
+    this.upvotes = 0;
   }
 
   increaseUpvote(): number {
@@ -79,11 +79,6 @@ class DAO implements IDAO {
   }
 
   getApprovalThreshold(): number {
-    console.log(
-      this.members,
-      this.members * 0.49,
-      Math.ceil(this.members * 0.49)
-    );
     return Math.ceil(this.members * 0.49);
   }
 

@@ -1,7 +1,7 @@
 export const messages = {
   joiningGroup: `Hello, I am DAOgram, welcome to the Telegram Unified Governance.
 
-Congrats, the multisig [MULTISIG HERE] was created! You are a DAO member now.
+Congrats, the multisig $DAO_MULTISIG_ADDRESS was created! You are a DAO member now.
 
 Type /propose to create a proposal.
 
@@ -21,7 +21,7 @@ $DESTINATION_ADDRESS
 
 React with 👍 if you approve 
   `,
-  proposalExecuted: `Congratulations, your proposal has been accepted and executed. 🐈
+  proposalExecuted: `Congratulations, your proposal has been accepted and executed.
 
 Please check if the total amount in $TON is now available in the wallet you selected to receive the funds.`,
 };

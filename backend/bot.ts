@@ -49,7 +49,6 @@ Receives data from webapp after submitting proposal
 */
 socket.on("proposal", async (proposal) => {
   console.log("Received proposal: ", proposal);
-  proposal.chatId = -1002181151341;
 
   const message = await bot.api.sendMessage(
     proposal.chatId,
