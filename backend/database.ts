@@ -1,4 +1,4 @@
-interface IProposal {
+export interface IProposal {
   messageId: number;
   upvotes: number;
   proposer?: string;
