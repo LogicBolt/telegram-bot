@@ -1,17 +1,19 @@
 import { Bot, InlineKeyboard } from "grammy";
 import "dotenv/config";
 import { Database } from "./database";
+import { messages } from "./messages";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const db = new Database();
+
 /* 
 When added to a group the bot, it's creating a
 new multisig, so it need to understand what's
 the % of the group needs to agree to move funds
 */
 bot.on("my_chat_member", async (ctx) => {
-  ctx.reply("Hi yall! Looks like a group of winners.");
-  // TODO: create a new private key and account. Register current chat number.
+  ctx.reply(messages.joiningGroup);
+
   console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
   console.log("my_chat_member:chatId: ", ctx.chatId);
   console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
@@ -26,7 +28,7 @@ in the DM to send a button for starting the mini webapp.
 bot.command("propose", async (ctx) => {
   const author = await ctx.getAuthor();
 
-  bot.api.sendMessage(author.user.id, "Hi!", {
+  bot.api.sendMessage(author.user.id, messages.createProposal, {
     reply_markup: new InlineKeyboard().webApp(
       "Propose a transaction",
       // TODO: add chat id as query param
@@ -35,23 +37,26 @@ bot.command("propose", async (ctx) => {
   });
 });
 
-bot.on("message", async (ctx) => {
-  console.log("message:chatId: ", ctx.chatId);
-  console.log("message:membersNumber: ", await ctx.getChatMemberCount());
-});
-
 /* 
 When a member of the DAO is added or remove,
 we need to update members
 */
 bot.on("chat_member", async (ctx) => {
-  ctx.reply("Hi new members, or maybe bye");
+  console.log(
+    "chat_member:username: ",
+    ctx.chatMember.new_chat_member.user.username
+  );
 
-  console.log(ctx);
   const dao = db.findDAO(ctx.chatId)!;
   dao.updateMembers(await ctx.getChatMemberCount());
+
+  // TODO: When member leave, recalcuate proposals approval
 });
 
+/* 
+A proposal voting happens through reactions.
+When the threshold is reached, the bot executes.
+*/
 bot.on("message_reaction", async (ctx) => {
   const { emojiAdded, emojiRemoved } = ctx.reactions();
 
@@ -61,10 +66,12 @@ bot.on("message_reaction", async (ctx) => {
   // new reaction
   if (emojiAdded.length != 0) {
     if (emojiAdded.includes("👍")) {
-      const currentApproval = proposal.increaseUpvote();
+      proposal.increaseUpvote();
 
-      if (currentApproval >= dao!.getApprovalThreshold()) {
-        dao!.executeProposal(proposal!);
+      // Check if this makes the proposal approved
+      if (dao.members >= dao.getApprovalThreshold()) {
+        dao.executeProposal(proposal);
+        bot.api.sendMessage(dao.chatId, messages.proposalExecuted);
       }
     }
   } else {
