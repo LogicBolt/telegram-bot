@@ -1,17 +1,21 @@
 import { Bot, InlineKeyboard } from "grammy";
 import "dotenv/config";
+import { Database } from "./database";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
-
+const db = new Database();
 /* 
 When added to a group the bot, it's creating a
 new multisig, so it need to understand what's
 the % of the group needs to agree to move funds
 */
-bot.on("my_chat_member", (ctx) => {
+bot.on("my_chat_member", async (ctx) => {
   ctx.reply("Hi yall! Looks like a group of winners.");
   // TODO: create a new private key and account. Register current chat number.
-  console.log(ctx);
+  console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
+  console.log("my_chat_member:chatId: ", ctx.chatId);
+  console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
+  db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount());
 });
 
 /* 
@@ -25,50 +29,52 @@ bot.command("propose", async (ctx) => {
   bot.api.sendMessage(author.user.id, "Hi!", {
     reply_markup: new InlineKeyboard().webApp(
       "Propose a transaction",
-      "https://your-web-app.com"
+      // TODO: add chat id as query param
+      "https://preview.daogram.0dns.co"
     ),
   });
 });
 
-// Send a button
-// bot.command("start", (ctx) => {
-//   console.log(ctx.message?.message_id);
-
-//   ctx.reply("a", );
-// });
-
-bot.on("message", (ctx) => {
-  console.log(ctx.chatId);
+bot.on("message", async (ctx) => {
+  console.log("message:chatId: ", ctx.chatId);
+  console.log("message:membersNumber: ", await ctx.getChatMemberCount());
 });
 
 /* 
 When a member of the DAO is added or remove,
-we need to update the transaction threshold
+we need to update members
 */
-bot.on("chat_member", (ctx) => {
+bot.on("chat_member", async (ctx) => {
   ctx.reply("Hi new members, or maybe bye");
-  // TODO keep track of groups members
+
   console.log(ctx);
+  const dao = db.findDAO(ctx.chatId)!;
+  dao.updateMembers(await ctx.getChatMemberCount());
 });
 
 bot.on("message_reaction", async (ctx) => {
-  const { emoji, emojiAdded, emojiRemoved } = ctx.reactions();
+  const { emojiAdded, emojiRemoved } = ctx.reactions();
+
+  const dao = db.findDAO(ctx.chatId)!;
+  const proposal = dao.findProposal(ctx.messageReaction.message_id)!;
+
   // new reaction
   if (emojiAdded.length != 0) {
     if (emojiAdded.includes("👍")) {
-      // TODO: count for the specific proposal message
-      console.log("Upvote for transaction");
-      ctx.reply("Upvote registered");
+      const currentApproval = proposal.increaseUpvote();
+
+      if (currentApproval >= dao!.getApprovalThreshold()) {
+        dao!.executeProposal(proposal!);
+      }
     }
-    // new reaction
   } else {
+    // removing upvote
     if (emojiRemoved.includes("👍")) {
-      // TODO: decrease for the specific proposal message
-      console.log("Upvote lost for transaction");
+      proposal?.decreaseUpvote();
     }
   }
 });
 
 bot.start({
-  allowed_updates: ["message", "message_reaction", "message_reaction_count"],
+  allowed_updates: ["message", "message_reaction", "my_chat_member"],
 });
