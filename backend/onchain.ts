@@ -1,24 +1,31 @@
-import 'dotenv/config';
+import "dotenv/config";
 import * as TonMnemonic from "tonweb-mnemonic";
-import TonWeb from 'tonweb';
-import type { EmbeddedWallet } from './embedded-wallet';
-import type { IProposal } from './database';
+import TonWeb from "tonweb";
+import type { EmbeddedWallet } from "./embedded-wallet";
+import type { IProposal } from "./database";
 
-const provider = new TonWeb.HttpProvider('https://testnet.toncenter.com/api/v2/jsonRPC', {apiKey: ''});
+const provider = new TonWeb.HttpProvider(
+  "https://testnet.toncenter.com/api/v2/jsonRPC",
+  { apiKey: "" }
+);
 const tonweb = new TonWeb(provider);
 
 export async function createWallet(chatId: number): Promise<EmbeddedWallet> {
   const walletId = chatId | 0xffffffff;
   // const mnemonic = await TonMnemonic.generateMnemonic();
-  const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(' ');
-  const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(mnemonic);
+  const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(" ");
+  const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(
+    mnemonic
+  );
 
   const wallet = tonweb.wallet.create({ publicKey, walletId });
 
   const address = await wallet.getAddress();
   // const nonBounceableAddress = address.toString(true, true, false, true);
   // const seqno = await wallet.methods.seqno().call();
-  console.log(`Deployed new wallet ${address.toString(true, true, false, true)}`);
+  console.log(
+    `Deployed new wallet ${address.toString(true, true, false, true)}`
+  );
 
   return {
     wallet,
@@ -28,16 +35,20 @@ export async function createWallet(chatId: number): Promise<EmbeddedWallet> {
   };
 }
 
-export async function sendTransaction(proposal: IProposal, sender: EmbeddedWallet) {
+export async function sendTransaction(
+  proposal: IProposal,
+  sender: EmbeddedWallet
+) {
   const seqno = await sender.wallet.methods.seqno().call();
+  console.log(proposal.amount);
   const fee = await sender.wallet.methods.transfer({
     secretKey: sender.secretKey,
-    toAddress: proposal.destinationAddress ?? '',
-    amount: TonWeb.utils.toNano(proposal.amount), // 0.01 TON
+    toAddress: proposal.destinationAddress ?? "",
+    amount: TonWeb.utils.toNano(proposal.amount?.toString()), // 0.01 TON
     seqno: seqno ?? 0,
-    payload: proposal.description ?? '',
+    payload: proposal.description ?? "",
     sendMode: 3,
-  }).estimateFee();
+  });
 
   const Cell = TonWeb.boc.Cell;
   const cell = new Cell();
@@ -65,8 +76,10 @@ export function getWalletAddress(wallet: EmbeddedWallet): string {
 }
 
 export async function predictAddress(walletId: number) {
-  const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(' ');
-  const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(mnemonic);
+  const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(" ");
+  const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(
+    mnemonic
+  );
 
   const wallet = tonweb.wallet.create({ publicKey, walletId });
 
