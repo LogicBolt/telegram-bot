@@ -12,7 +12,7 @@ interface IProposal {
 
 interface IDAO {
   chatId: number;
-  proposals?: IProposal[];
+  proposals?: Array<IProposal>;
   members: number;
   // TODO: wallet object
 
@@ -24,7 +24,7 @@ interface IDAO {
 }
 
 interface IDatabase {
-  daos?: IDAO[];
+  daos?: Array<IDAO>;
 
   createNewDAO(chatId: number, members: number): IDAO;
   findDAO(chatId: number): IDAO | undefined;
@@ -54,16 +54,20 @@ class Proposal implements IProposal {
 
 class DAO implements IDAO {
   chatId: number;
-  proposals?: IProposal[];
+  proposals: Array<IProposal>;
   members: number;
 
   constructor(chatId: number, members: number) {
     this.chatId = chatId;
     this.members = members;
+    this.proposals = [];
   }
 
   createNewProposal(messageId: number): IProposal {
-    return new Proposal(messageId);
+    const proposal = new Proposal(messageId);
+    this.proposals.push(proposal);
+
+    return proposal;
   }
 
   findProposal(messageId: number): IProposal | undefined {
@@ -75,7 +79,7 @@ class DAO implements IDAO {
   }
 
   getApprovalThreshold(): number {
-    return Math.ceil(this.members * 0.51);
+    return Math.ceil(this.members * 0.49);
   }
 
   executeProposal(proposal: IProposal): void {
@@ -84,13 +88,21 @@ class DAO implements IDAO {
 }
 
 export class Database implements IDatabase {
-  daos?: IDAO[];
+  daos: Array<IDAO>;
 
+  constructor() {
+    this.daos = [];
+  }
   createNewDAO(chatId: number, members: number): IDAO {
-    return new DAO(chatId, members);
+    const dao = new DAO(chatId, members);
+    this.daos.push(dao);
+
+    return dao;
   }
 
   findDAO(chatId: number): IDAO | undefined {
-    return this.daos?.find((dao) => dao.chatId == chatId);
+    const dao = this.daos?.find((dao) => dao.chatId == chatId);
+
+    return dao;
   }
 }
