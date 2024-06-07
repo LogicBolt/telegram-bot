@@ -8,6 +8,7 @@ export interface IProposal {
   description?: string;
   amount?: number;
   destinationAddress?: string;
+  executed: boolean;
 
   increaseUpvote(): number;
   decreaseUpvote(): number;
@@ -40,6 +41,7 @@ class Proposal implements IProposal {
   description?: string;
   amount?: number;
   destinationAddress?: string;
+  executed: boolean;
 
   constructor(messageId: number, proposalData: any) {
     this.messageId = messageId;
@@ -47,6 +49,7 @@ class Proposal implements IProposal {
     this.description = proposalData.description;
     this.amount = proposalData.amount;
     this.destinationAddress = proposalData.destinationAddress;
+    this.executed = false;
   }
 
   increaseUpvote(): number {
@@ -87,11 +90,11 @@ class DAO implements IDAO {
   }
 
   getApprovalThreshold(): number {
-    return Math.ceil(this.members * 0.49) - 1;
+    return Math.ceil(this.members * 0.49);
   }
 
   executeProposal(proposal: IProposal): any {
-    console.log("HEEERRREEEE");
+    proposal.executed = true;
     return sendTransaction(proposal, this.wallet);
   }
 }

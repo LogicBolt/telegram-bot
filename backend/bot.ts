@@ -108,6 +108,8 @@ bot.on("message_reaction", async (ctx) => {
 
   const dao = db.findDAO(ctx.chatId)!;
   const proposal = dao.findProposal(ctx.messageReaction.message_id)!;
+  if (proposal.executed) return;
+
   console.log("PROPOSAL FROM REACTION: ", proposal, dao);
   // new reaction
   if (emojiAdded.length != 0) {
