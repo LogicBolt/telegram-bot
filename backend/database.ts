@@ -1,4 +1,5 @@
-import { EmbeddedWallet } from './embedded-wallet';
+import { EmbeddedWallet } from "./embedded-wallet";
+import { sendTransaction } from "./onchain";
 
 export interface IProposal {
   messageId: number;
@@ -7,6 +8,7 @@ export interface IProposal {
   description?: string;
   amount?: number;
   destinationAddress?: string;
+  executed: boolean;
 
   increaseUpvote(): number;
   decreaseUpvote(): number;
@@ -16,13 +18,13 @@ interface IDAO {
   chatId: number;
   proposals?: Array<IProposal>;
   members: number;
-  // TODO: wallet object
+  wallet: EmbeddedWallet;
 
-  createNewProposal(messageId: number): IProposal;
+  createNewProposal(messageId: number, proposalData: any): IProposal;
   findProposal(messageId: number): IProposal | undefined;
   updateMembers(newMembers: number): void;
   getApprovalThreshold(): number;
-  executeProposal(proposal: IProposal): void;
+  executeProposal(proposal: IProposal): any;
 }
 
 interface IDatabase {
@@ -39,10 +41,15 @@ class Proposal implements IProposal {
   description?: string;
   amount?: number;
   destinationAddress?: string;
+  executed: boolean;
 
-  constructor(messageId: number) {
+  constructor(messageId: number, proposalData: any) {
     this.messageId = messageId;
     this.upvotes = 0;
+    this.description = proposalData.description;
+    this.amount = proposalData.amount;
+    this.destinationAddress = proposalData.destinationAddress;
+    this.executed = false;
   }
 
   increaseUpvote(): number {
@@ -67,8 +74,8 @@ class DAO implements IDAO {
     this.proposals = [];
   }
 
-  createNewProposal(messageId: number): IProposal {
-    const proposal = new Proposal(messageId);
+  createNewProposal(messageId: number, proposalData: any): IProposal {
+    const proposal = new Proposal(messageId, proposalData);
     this.proposals.push(proposal);
 
     return proposal;
@@ -79,15 +86,16 @@ class DAO implements IDAO {
   }
 
   updateMembers(newMembers: number) {
-    this.members = newMembers;
+    this.members = newMembers - 1;
   }
 
   getApprovalThreshold(): number {
     return Math.ceil(this.members * 0.49);
   }
 
-  executeProposal(proposal: IProposal): void {
-    // TODO: use wallet to execute proposal
+  executeProposal(proposal: IProposal): any {
+    proposal.executed = true;
+    return sendTransaction(proposal, this.wallet);
   }
 }
 
@@ -105,8 +113,6 @@ export class Database implements IDatabase {
   }
 
   findDAO(chatId: number): IDAO | undefined {
-    const dao = this.daos?.find((dao) => dao.chatId == chatId);
-
-    return dao;
+    return this.daos?.find((dao) => dao.chatId == chatId);
   }
 }

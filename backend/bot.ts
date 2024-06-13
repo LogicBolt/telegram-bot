@@ -3,7 +3,7 @@ import "dotenv/config";
 import { Database } from "./database";
 import { messages } from "./messages";
 import { io } from "socket.io-client";
-import { createWallet } from './onchain';
+import { createWallet } from "./onchain";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const db = new Database();
@@ -15,17 +15,27 @@ new multisig, so it need to understand what's
 the % of the group needs to agree to move funds
 */
 bot.on("my_chat_member", async (ctx) => {
-  if (ctx.update.my_chat_member.new_chat_member.status !== 'member') {
+  if (ctx.update.my_chat_member.new_chat_member.status !== "member") {
     return;
   }
-
-  await ctx.reply(messages.joiningGroup);
 
   // console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
   console.log("my_chat_member:chatId: ", ctx.chatId);
   // console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
   try {
     const embeddedWallet = await createWallet(ctx.chatId);
+    await ctx.reply(
+      messages.joiningGroup
+        .replace(
+          "$DAO_MULTISIG_ADDRESS",
+          embeddedWallet.address.toString(true, true, false, true)
+        )
+        .replace(
+          "$DAO_MULTISIG_ADDRESS",
+          embeddedWallet.address.toString(true, true, false, true)
+        ),
+      { parse_mode: "MarkdownV2" }
+    );
     db.createNewDAO(ctx.chatId, await ctx.getChatMemberCount(), embeddedWallet);
   } catch (e: unknown) {
     console.error(e);
@@ -52,6 +62,8 @@ bot.command("propose", async (ctx) => {
       // TODO: add chat id as query param
       `https://preview.daogram.0dns.co/#submit-proposal?chat-id=${ctx.chatId}`
     ),
+  }).catch(e => {
+    console.error(e.message);
   });
 });
 
@@ -70,7 +82,7 @@ socket.on("proposal", async (proposal) => {
   );
 
   const dao = db.findDAO(proposal.chatId)!;
-  dao.createNewProposal(message.message_id);
+  dao.createNewProposal(message.message_id, proposal);
 });
 
 /* 
@@ -97,8 +109,13 @@ bot.on("message_reaction", async (ctx) => {
   const { emojiAdded, emojiRemoved } = ctx.reactions();
 
   const dao = db.findDAO(ctx.chatId)!;
+  if (!dao) {
+    return;
+  }
   const proposal = dao.findProposal(ctx.messageReaction.message_id)!;
+  if (proposal.executed) return;
 
+  console.log("PROPOSAL FROM REACTION: ", proposal, dao);
   // new reaction
   if (emojiAdded.length != 0) {
     if (emojiAdded.includes("👍")) {
@@ -106,10 +123,21 @@ bot.on("message_reaction", async (ctx) => {
 
       // Check if this makes the proposal approved
       if (proposal.upvotes >= dao.getApprovalThreshold()) {
-        dao.executeProposal(proposal);
-        bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
-          reply_parameters: { message_id: proposal.messageId },
+        const tx = await dao.executeProposal(proposal).catch(e => {
+          console.error('Execute Proposal failed');
+          console.log(e);
+          return null;
         });
+        if (tx) {
+          console.log("EXECUTED: ", tx);
+          bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
+            reply_parameters: { message_id: proposal.messageId },
+          });
+        } else {
+          bot.api.sendMessage(dao.chatId, messages.transactionError, {
+            reply_parameters: { message_id: proposal.messageId },
+          });
+        }
       }
     }
   } else {
