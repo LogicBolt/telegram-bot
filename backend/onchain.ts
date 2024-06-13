@@ -42,6 +42,7 @@ export async function sendTransaction(
   proposal: IProposal,
   sender: EmbeddedWallet
 ) {
+  try {
   const seqno = await sender.wallet.methods.seqno().call();
   return sender.wallet.methods
     .transfer({
@@ -53,6 +54,9 @@ export async function sendTransaction(
       sendMode: 3,
     })
     .send();
+  } catch(e) {
+    console.log('Error sending tx', e);
+  }
 }
 
 export function getWalletAddress(wallet: EmbeddedWallet): string {

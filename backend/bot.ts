@@ -62,6 +62,8 @@ bot.command("propose", async (ctx) => {
       // TODO: add chat id as query param
       `https://preview.daogram.0dns.co/#submit-proposal?chat-id=${ctx.chatId}`
     ),
+  }).catch(e => {
+    console.error(e.message);
   });
 });
 
@@ -107,6 +109,9 @@ bot.on("message_reaction", async (ctx) => {
   const { emojiAdded, emojiRemoved } = ctx.reactions();
 
   const dao = db.findDAO(ctx.chatId)!;
+  if (!dao) {
+    return;
+  }
   const proposal = dao.findProposal(ctx.messageReaction.message_id)!;
   if (proposal.executed) return;
 
@@ -118,11 +123,21 @@ bot.on("message_reaction", async (ctx) => {
 
       // Check if this makes the proposal approved
       if (proposal.upvotes >= dao.getApprovalThreshold()) {
-        const tx = await dao.executeProposal(proposal);
-        console.log("EXECUTED: ", tx);
-        bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
-          reply_parameters: { message_id: proposal.messageId },
+        const tx = await dao.executeProposal(proposal).catch(e => {
+          console.error('Execute Proposal failed');
+          console.log(e);
+          return null;
         });
+        if (tx) {
+          console.log("EXECUTED: ", tx);
+          bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
+            reply_parameters: { message_id: proposal.messageId },
+          });
+        } else {
+          bot.api.sendMessage(dao.chatId, messages.transactionError, {
+            reply_parameters: { message_id: proposal.messageId },
+          });
+        }
       }
     }
   } else {

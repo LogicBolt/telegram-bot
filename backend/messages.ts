@@ -24,4 +24,5 @@ React with 👍 if you approve
   proposalExecuted: `Congratulations, your proposal has been accepted and executed.
 
 Please check if the total amount in $TON is now available in the wallet you selected to receive the funds.`,
+  transactionError: `An error has occured`
 };

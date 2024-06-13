@@ -6,7 +6,6 @@ import {
   List,
   Navigation,
   Placeholder, Section,
-  Text,
   Title,
 } from '@telegram-apps/telegram-ui';
 import type { FC } from 'react';
