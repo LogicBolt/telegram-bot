@@ -14,7 +14,7 @@ async function getProvider() {
 }
 
 export async function createWallet(chatId: number): Promise<EmbeddedWallet> {
-  const walletId = chatId | 0xffffffff;
+  const walletId = 0;
   // const mnemonic = await TonMnemonic.generateMnemonic();
   const mnemonic = String(process.env.MASTER_SEED_PHRASE).split(" ");
   const { publicKey, secretKey } = await TonMnemonic.mnemonicToKeyPair(
@@ -43,18 +43,18 @@ export async function sendTransaction(
   sender: EmbeddedWallet
 ) {
   try {
-  const seqno = await sender.wallet.methods.seqno().call();
-  return sender.wallet.methods
-    .transfer({
-      secretKey: sender.secretKey,
-      toAddress: proposal.destinationAddress ?? "",
-      amount: TonWeb.utils.toNano(proposal.amount?.toString()),
-      seqno: seqno ?? 0,
-      payload: proposal.description,
-      sendMode: 3,
-    })
-    .send();
-  } catch(e) {
+    const seqno = await sender.wallet.methods.seqno().call();
+    return sender.wallet.methods
+      .transfer({
+        secretKey: sender.secretKey,
+        toAddress: proposal.destinationAddress ?? "",
+        amount: TonWeb.utils.toNano(proposal.amount?.toString()),
+        seqno: seqno ?? 0,
+        payload: proposal.description,
+        sendMode: 3,
+      })
+      .send();
+  } catch (e) {
     console.log('Error sending tx', e);
   }
 }

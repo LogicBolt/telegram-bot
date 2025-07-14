@@ -36,7 +36,7 @@ export const SubmitProposal: FC = () => {
       chatId: parseInt(String(chatId)),
       token: 'TON',
     });
-    fetch('https://socket.daogram.0dns.co/', {
+    fetch('https://commonwealthsovereignfoundation.org:3001/', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -56,9 +56,9 @@ export const SubmitProposal: FC = () => {
     }}>
       <Section header="Submit a new proposal">
         <Input
-            header="Amount"
-            placeholder="TON amount"
-            onChange={updateAmount}
+          header="Amount"
+          placeholder="TON amount"
+          onChange={updateAmount}
         />
         <Input
           header="Destination address"

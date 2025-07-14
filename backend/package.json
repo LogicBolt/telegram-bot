@@ -1,19 +1,24 @@
 {
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.13.0",
+    "concurrently": "^8.2.2",
     "tsx": "^4.11.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
     "@orbs-network/ton-access": "^2.3.3",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.18.2",
     "grammy": "^1.24.0",
-    "socket.io-client": "^4.7.5",
     "ton-core": "^0.53.0",
     "tonweb": "^0.0.66",
     "tonweb-mnemonic": "^1.0.1"
   },
   "scripts": {
-    "start": "npx tsx watch --clear-screen=false bot.ts"
+    "start": "npx tsx watch --clear-screen=false bot.ts",
+    "dev": "npx tsx bot.ts"
   }
 }

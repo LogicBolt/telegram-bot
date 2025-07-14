@@ -2,12 +2,47 @@ import { Bot, InlineKeyboard } from "grammy";
 import "dotenv/config";
 import { Database } from "./database";
 import { messages } from "./messages";
-import { io } from "socket.io-client";
 import { createWallet } from "./onchain";
+import { createServer } from 'https';
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const db = new Database();
-const socket = io("https://socket.daogram.0dns.co/");
+
+// Create Express app and HTTPS server
+const app = express();
+const server = createServer({
+  key: fs.readFileSync("/etc/letsencrypt/live/commonwealthsovereignfoundation.org/privkey.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/commonwealthsovereignfoundation.org/fullchain.pem"),
+}, app);
+
+app.use(cors());
+app.use(express.json());
+
+// bot.start({
+//   allowed_updates: ["message", "message_reaction", "my_chat_member"],
+// });
+console.log("✅ Bot started successfully");
+
+// Start the HTTPS server
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🌐 HTTPS server running on port ${PORT}`);
+  console.log(`📡 Endpoints:`);
+  console.log(`   GET  https://commonwealthsovereignfoundation.org:${PORT}/ - Health check`);
+  console.log(`   POST https://commonwealthsovereignfoundation.org:${PORT}/ - Submit proposal`);
+});
+
+// Simple health check endpoint
+app.get('/', (req: any, res: any) => {
+  res.json({
+    status: 'OK',
+    message: 'DAOgram bot server is running',
+    timestamp: new Date().toISOString()
+  });
+});
 
 /*
 When added to a group the bot, it's creating a
@@ -19,9 +54,7 @@ bot.on("my_chat_member", async (ctx) => {
     return;
   }
 
-  // console.log("my_chat_member:myChatMember: ", ctx.myChatMember);
   console.log("my_chat_member:chatId: ", ctx.chatId);
-  // console.log("my_chat_member:membersNumber: ", await ctx.getChatMemberCount());
   try {
     const embeddedWallet = await createWallet(ctx.chatId);
     await ctx.reply(
@@ -59,30 +92,54 @@ bot.command("propose", async (ctx) => {
   await bot.api.sendMessage(author.user.id, messages.createProposal, {
     reply_markup: new InlineKeyboard().webApp(
       messages.createProposalButton,
-      // TODO: add chat id as query param
-      `https://preview.daogram.0dns.co/#submit-proposal?chat-id=${ctx.chatId}`
+      `https://daogram.commonwealthsovereignfoundation.org/#submit-proposal?chat-id=${ctx.chatId}`
     ),
   }).catch(e => {
     console.error(e.message);
   });
 });
 
-/* 
-Receives data from webapp after submitting proposal
-*/
-socket.on("proposal", async (proposal) => {
-  console.log("Received proposal: ", proposal);
+// Handle proposal submissions from mini-app via HTTP POST
+app.post('/', async (req: any, res: any) => {
+  console.log('Received POST request:', req.body);
 
-  const message = await bot.api.sendMessage(
-    proposal.chatId,
-    messages.proposalTemplate
-      .replace("$DESCRIPTION", proposal.description)
-      .replace("$AMOUNT", proposal.amount)
-      .replace("$DESTINATION_ADDRESS", proposal.destinationAddress)
-  );
+  const { chatId, description, amount, destinationAddress } = req.body;
 
-  const dao = db.findDAO(proposal.chatId)!;
-  dao.createNewProposal(message.message_id, proposal);
+  if (!chatId || !description || !amount || !destinationAddress) {
+    console.error('Missing required fields:', { chatId, description, amount, destinationAddress });
+    return res.status(400).json({
+      error: 'Missing required fields: chatId, description, amount, destinationAddress'
+    });
+  }
+
+  console.log('Processing proposal:', { chatId, description, amount, destinationAddress });
+
+  try {
+    const message = await bot.api.sendMessage(
+      chatId,
+      messages.proposalTemplate
+        .replace("$DESCRIPTION", description)
+        .replace("$AMOUNT", amount)
+        .replace("$DESTINATION_ADDRESS", destinationAddress)
+    );
+
+    const dao = db.findDAO(chatId);
+    if (dao) {
+      dao.createNewProposal(message.message_id, { description, amount, destinationAddress });
+      console.log('✅ Proposal created successfully for chat:', chatId, 'Message ID:', message.message_id);
+      res.json({
+        success: true,
+        messageId: message.message_id,
+        message: 'Proposal posted successfully'
+      });
+    } else {
+      console.error('DAO not found for chat:', chatId);
+      res.status(404).json({ error: 'DAO not found for this chat' });
+    }
+  } catch (error) {
+    console.error('Error processing proposal:', error);
+    res.status(500).json({ error: 'Failed to process proposal', details: error });
+  }
 });
 
 /* 
@@ -97,8 +154,6 @@ bot.on("chat_member", async (ctx) => {
 
   const dao = db.findDAO(ctx.chatId)!;
   dao.updateMembers(await ctx.getChatMemberCount());
-
-  // TODO: When member leave, recalcuate proposals approval
 });
 
 /* 
@@ -106,48 +161,99 @@ A proposal voting happens through reactions.
 When the threshold is reached, the bot executes.
 */
 bot.on("message_reaction", async (ctx) => {
-  const { emojiAdded, emojiRemoved } = ctx.reactions();
+  console.log("🎯 REACTION EVENT RECEIVED");
+  console.log("Chat ID:", ctx.chatId);
+  console.log("Message ID:", ctx.messageReaction.message_id);
+  console.log("User ID:", ctx.messageReaction.user?.id || "Unknown");
 
-  const dao = db.findDAO(ctx.chatId)!;
+  const { emojiAdded, emojiRemoved } = ctx.reactions();
+  console.log("👍 Emoji Added:", emojiAdded);
+  console.log("👎 Emoji Removed:", emojiRemoved);
+
+  const dao = db.findDAO(ctx.chatId);
   if (!dao) {
+    console.log("❌ No DAO found for chat:", ctx.chatId);
     return;
   }
-  const proposal = dao.findProposal(ctx.messageReaction.message_id)!;
-  if (proposal.executed) return;
 
-  console.log("PROPOSAL FROM REACTION: ", proposal, dao);
-  // new reaction
-  if (emojiAdded.length != 0) {
+  const proposal = dao.findProposal(ctx.messageReaction.message_id);
+  if (!proposal) {
+    console.log("❌ No proposal found for message ID:", ctx.messageReaction.message_id);
+    console.log("Available proposals:", dao.proposals?.map(p => ({ messageId: p.messageId, description: p.description })) || []);
+    return;
+  }
+
+  if (proposal.executed) {
+    console.log("❌ Proposal already executed");
+    return;
+  }
+
+  console.log("📊 Current proposal state:", {
+    messageId: proposal.messageId,
+    upvotes: proposal.upvotes,
+    threshold: dao.getApprovalThreshold(),
+    description: proposal.description
+  });
+
+  // Handle new reactions
+  if (emojiAdded.length > 0) {
     if (emojiAdded.includes("👍")) {
       proposal.increaseUpvote();
+      console.log("✅ Upvote added! New count:", proposal.upvotes);
 
       // Check if this makes the proposal approved
       if (proposal.upvotes >= dao.getApprovalThreshold()) {
-        const tx = await dao.executeProposal(proposal).catch(e => {
-          console.error('Execute Proposal failed');
-          console.log(e);
+        console.log("🎉 PROPOSAL APPROVED! Executing transaction...");
+        const tx = await dao.executeProposal(proposal).catch((e: any) => {
+          console.error('❌ Execute Proposal failed:', e);
           return null;
         });
         if (tx) {
-          console.log("EXECUTED: ", tx);
-          bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
+          console.log("✅ Transaction executed successfully:", tx);
+          await bot.api.sendMessage(dao.chatId, messages.proposalExecuted, {
             reply_parameters: { message_id: proposal.messageId },
           });
         } else {
-          bot.api.sendMessage(dao.chatId, messages.transactionError, {
+          console.log("❌ Transaction failed");
+          await bot.api.sendMessage(dao.chatId, messages.transactionError, {
             reply_parameters: { message_id: proposal.messageId },
           });
         }
+      } else {
+        console.log("📊 Not enough votes yet. Need:", dao.getApprovalThreshold() - proposal.upvotes, "more");
       }
     }
-  } else {
-    // removing upvote
+  }
+
+  // Handle removed reactions
+  if (emojiRemoved.length > 0) {
     if (emojiRemoved.includes("👍")) {
-      proposal?.decreaseUpvote();
+      proposal.decreaseUpvote();
+      console.log("👎 Upvote removed! New count:", proposal.upvotes);
     }
   }
 });
 
-bot.start({
-  allowed_updates: ["message", "message_reaction", "my_chat_member"],
-});
+// Start both the bot and the HTTPS server
+async function startServer() {
+  try {
+    // Start the bot
+    await bot.start({
+      allowed_updates: ["message", "message_reaction", "my_chat_member"],
+    });
+    console.log("✅ Bot started successfully");
+
+    // Start the HTTPS server
+    // const PORT = process.env.PORT || 3001;
+    // server.listen(PORT, () => {
+    //   console.log(`🌐 HTTPS server running on port ${PORT}`);
+    //   console.log(`📡 Endpoints:`);
+    //   console.log(`   GET  https://commonwealthsovereignfoundation.org:${PORT}/ - Health check`);
+    //   console.log(`   POST https://commonwealthsovereignfoundation.org:${PORT}/ - Submit proposal`);
+    // });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+  }
+}
+
+startServer();
